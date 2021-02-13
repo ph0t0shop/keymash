@@ -147,40 +147,26 @@ function getLetterElem (index) {
                             }
                             break;
                         case "updateWPM":
-                            if (json[1].WPM) { // sometimes it's just the keystroke
-                                if (json[1].userUniqueId === userID) { // this is us
-                                    const infoBar = document.querySelector(".game--content--bar");
-                                    if (infoBar) {
-                                        let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
-                                        if (!wpmWrapperElem) {
-                                            wpmWrapperElem = getWPMElem();
-                                            infoBar.appendChild(wpmWrapperElem);
-                                        }
-                                        const wpmElem = wpmWrapperElem.querySelector("#wpm-counter");
-                                        wpmElem.innerText = json[1].WPM;
+                            if (json[1].WPM && json[1].userUniqueId === userID) { // we received our own wpm
+                                const infoBar = document.querySelector(".game--content--bar");
+                                if (infoBar) {
+                                    let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
+                                    if (!wpmWrapperElem) {
+                                        wpmWrapperElem = getWPMElem();
+                                        infoBar.appendChild(wpmWrapperElem);
                                     }
-                                    // console.log("MY WPM: " + json[1].WPM);
-                                } /* else {
-                                    console.log(`${users[json[1].userUniqueId].name}'s WPM: ${json[1].WPM}`)
-                                }*/
-                            } else if (json[1].correctKeystrokes) {
-                                if (json[1].userUniqueId === userID) { // this is us
-                                    // console.log(`We got ${json[1].correctKeystrokes} correct keystrokes!`);
-                                } else {
-                                    // console.log(`${users[json[1].userUniqueId].name} got ${json[1].correctKeystrokes} correct keystrokes!`);
+                                    const wpmElem = wpmWrapperElem.querySelector("#wpm-counter");
+                                    wpmElem.innerText = json[1].WPM;
+                                }
+                            } else if (json[1].correctKeystrokes && json[1].userUniqueId !== userID) { // we received another user's keystroke
+                                let left, top;
+                                [left, top] = getLetterElem(json[1].correctKeystrokes);
 
-                                    let left, top;
-                                    [left, top] = getLetterElem(json[1].correctKeystrokes);
-                                    // console.log(users[json[1].userUniqueId]);
-                                    // console.log(`SETTING ${left}, ${top}`)
-                                    users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
-                                    users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
-                                }
-                            } else if (json[1].Placement) {
-                                if (json[1].Placement === 999) { // user left
-                                    users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
-                                    users[json[1].userUniqueId].caret.classList.add("bg-red-600");
-                                }
+                                users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
+                                users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
+                            } else if (json[1].Placement && json[1].Placement === 999) { // user left
+                                users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
+                                users[json[1].userUniqueId].caret.classList.add("bg-red-600");
                             }
                             break;
                         default:
