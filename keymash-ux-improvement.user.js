@@ -125,10 +125,64 @@ function getLetterElem (index) {
     return [res.offsetLeft - 2, res.offsetTop];
 }
 
+let settings;
+
+async function loadSettings() {
+    const showWPM = await GM_getValue("show-wpm");
+    const showCarets = await GM_getValue("show-wpm");
+    const hideOthersProgress = await GM_getValue("hide-others-progress");
+    settings = {
+        "show-wpm": showWPM ? showWPM === "yes" : true,
+        "show-carets": showCarets ? showCarets === "yes" : true,
+        "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false
+    }
+}
+
+let alertTimeout;
+async function createSettingsElem (settingTitle, settingName, left) { // very hacky. Do not call with user input. settingName is string, options is list of {text: , value: } objects
+    const div = document.createElement("div");
+    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2`;
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.innerText = settingTitle;
+    div.appendChild(titleDiv);
+    const selectElem = document.createElement("select");
+    selectElem.className = "form-settings";
+    selectElem.setAttribute("name", "userCardBorder");
+
+    const yesOptionElem = document.createElement("option");
+    yesOptionElem.setAttribute("value", "yes");
+    yesOptionElem.innerText = "Yes";
+    selectElem.appendChild(yesOptionElem);
+
+    const noOptionElem = document.createElement("option");
+    noOptionElem.setAttribute("value", "no");
+    noOptionElem.innerText = "No";
+    selectElem.appendChild(noOptionElem);
+
+    selectElem.addEventListener("change", async function() {
+        await GM_setValue(settingName, selectElem.value);
+        settings[settingName] = selectElem.value === "yes";
+        if (document.querySelector("form > div.fixed")) {
+            document.querySelector("form > div.fixed").style.display = "block";
+        } else {
+            document.querySelector("form").prepend(getSuccessAlert());
+        }
+        clearTimeout(alertTimeout);
+        alertTimeout = setTimeout(() => {
+            document.querySelector("form > div.fixed").style.display = "none";
+        }, 5000);
+    });
+
+    selectElem.value = settings[settingName] ? "yes" : "no";
+
+    div.appendChild(selectElem);
+    return div;
+}
 
 // =================== MAIN PART OF SCRIPT =================
 
-(async function() {
+(function() {
     'use strict';
 
     async function handleUrl(url) {
@@ -147,57 +201,6 @@ function getLetterElem (index) {
             addSetting(await createSettingsElem("Show carets", "show-carets", !left, ["Yes", "No"]));
             addSetting(await createSettingsElem("Hide others' progress", "hide-others-progress", left, ["Yes", "No"]));
         }
-    }
-
-    const showWPM = await GM_getValue("show-wpm");
-    const showCarets = await GM_getValue("show-wpm");
-    const hideOthersProgress = await GM_getValue("hide-others-progress");
-    let settings = {
-        "show-wpm": showWPM ? showWPM === "yes" : true,
-        "show-carets": showCarets ? showCarets === "yes" : true,
-        "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false
-    }
-
-    let alertTimeout;
-    async function createSettingsElem (settingTitle, settingName, left) { // very hacky. Do not call with user input. settingName is string, options is list of {text: , value: } objects
-        const div = document.createElement("div");
-        div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2`;
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
-        titleDiv.innerText = settingTitle;
-        div.appendChild(titleDiv);
-        const selectElem = document.createElement("select");
-        selectElem.className = "form-settings";
-        selectElem.setAttribute("name", "userCardBorder");
-
-        const yesOptionElem = document.createElement("option");
-        yesOptionElem.setAttribute("value", "yes");
-        yesOptionElem.innerText = "Yes";
-        selectElem.appendChild(yesOptionElem);
-
-        const noOptionElem = document.createElement("option");
-        noOptionElem.setAttribute("value", "no");
-        noOptionElem.innerText = "No";
-        selectElem.appendChild(noOptionElem);
-
-        selectElem.addEventListener("change", async function() {
-            await GM_setValue(settingName, selectElem.value);
-            settings[settingName] = selectElem.value === "yes";
-            if (document.querySelector("form > div.fixed")) {
-                document.querySelector("form > div.fixed").style.display = "block";
-            } else {
-                document.querySelector("form").prepend(getSuccessAlert());
-            }
-            clearTimeout(alertTimeout);
-            alertTimeout = setTimeout(() => {
-                document.querySelector("form > div.fixed").style.display = "none";
-            }, 5000);
-        });
-
-        selectElem.value = settings[settingName] ? "yes" : "no";
-
-        div.appendChild(selectElem);
-        return div;
     }
 
     let users;
@@ -287,6 +290,8 @@ function getLetterElem (index) {
     }
 
     WebSocket = new Proxy(WebSocket, handler);
+
+    loadSettings();
 
     prependToFunc(WebSocket.prototype, 'send', function(data) {
         const json = getJSONFromSocketData(data);
