@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
-// @namespace    http://tampermonkey.net/
+// @namespace    com.github.ph0t0shop
 // @version      0.1.0
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
