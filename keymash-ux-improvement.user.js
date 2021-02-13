@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
-// @author       You
+// @author       ph0t0shop
 // @match        https://keyma.sh/*
 // @grant        none
 // ==/UserScript==
