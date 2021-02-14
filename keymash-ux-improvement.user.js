@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.1.1
+// @version      0.1.2
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -85,7 +85,7 @@ function createCaret (userID) {
     let div = document.createElement("div");
     div.setAttribute("id", `caret${userID}`);
     div.setAttribute("style", "width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1);");
-    div.setAttribute("class", "caret-idle absolute rounded bg-orange-400 other-players-caret");
+    div.setAttribute("class", "absolute rounded bg-orange-400 other-players-caret");
     return div;
 }
 
@@ -108,10 +108,7 @@ function getLetterElem (index) {
     if (!res) { // for the last character 
         const letter = matchText.children[2].children[matchText.children[2].childElementCount - 1];
         if (!letter) {
-            return {
-                offsetLeft: -100000,
-                offsetTop: -100000
-            };
+            return [-100000, -100000];
         }
         res = {
             offsetLeft: letter.offsetLeft + letter.getBoundingClientRect().width,
@@ -187,8 +184,8 @@ async function handleUrl(url) {
 
         const left = settingsDiv.getElementsByClassName("lg:w-1/2").length % 2 == 0;
 
-        addSetting(createSettingsElem("Show WPM", "show-wpm", left, ["Yes", "No"]));
-        addSetting(createSettingsElem("Show carets", "show-carets", !left, ["Yes", "No"]));
+        addSetting(createSettingsElem("Show large WPM", "show-wpm", left, ["Yes", "No"]));
+        addSetting(createSettingsElem("Show others' carets", "show-carets", !left, ["Yes", "No"]));
         addSetting(createSettingsElem("Hide others' progress", "hide-others-progress", left, ["Yes", "No"]));
     }
 }
@@ -235,10 +232,21 @@ function getSuccessAlert() {
                         document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
                     }
                 }
-                if (settings["hide-others-progress"]) {
+                if (settings["hide-others-progress"]) { // hide the others
                     for (const elem of document.querySelectorAll(".sidebar-user")) {
                         if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
                             elem.children[1].style.display = "none";
+                        }
+                    }
+                    const otherRankedPlayer = document.querySelector("div.flex.flex-wrap.px-4.py-2.rounded-bl.flex-row-reverse");
+                    if (otherRankedPlayer) {
+                        const wpmAndWord = otherRankedPlayer.querySelector("div.w-32.my-auto");
+                        if (wpmAndWord) {
+                            wpmAndWord.style.display = "none";
+                        }
+                        const progressBar = otherRankedPlayer.querySelector("div.mt-1.w-full.bg-black.bg-opacity-40.rounded-full");
+                        if (progressBar) {
+                            progressBar.style.display = "none"
                         }
                     }
                 }
@@ -261,19 +269,30 @@ function getSuccessAlert() {
 
                     users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
                     users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
-                } else if (json[1].Placement) {
-                    if (settings["show-carets"] && json[1].Placement === 999) { // user left
-                        users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
-                        users[json[1].userUniqueId].caret.classList.add("bg-red-600");
-                    } else if (settings["hide-others-progress"] && json[1].userUniqueId == userID) { // we are done
-                        for (const elem of document.querySelectorAll(".sidebar-user")) { // make other users' progress reappear
-                            if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
-                                elem.children[1].style.display = "inline";
-                            }
+                } else if (settings["show-carets"] && json[1].Placement && json[1].Placement === 999) { // user left
+                    users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
+                    users[json[1].userUniqueId].caret.classList.add("bg-red-600");
+                }
+                break;
+            case "endMatch":
+                if (settings["hide-others-progress"]) {
+                    for (const elem of document.querySelectorAll(".sidebar-user")) { // make other users' progress reappear
+                        if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                            elem.children[1].style.display = "inline";
+                        }
+                    }
+                    const otherRankedPlayer = document.querySelector("div.flex.flex-wrap.px-4.py-2.rounded-bl.flex-row-reverse");
+                    if (otherRankedPlayer) {
+                        const wpmAndWord = otherRankedPlayer.querySelector("div.w-32.my-auto");
+                        if (wpmAndWord) {
+                            wpmAndWord.style.display = "block";
+                        }
+                        const progressBar = otherRankedPlayer.querySelector("div.mt-1.w-full.bg-black.bg-opacity-40.rounded-full");
+                        if (progressBar) {
+                            progressBar.style.display = "block"
                         }
                     }
                 }
-                break;
             default:
                 break;
         }
