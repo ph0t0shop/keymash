@@ -23,6 +23,21 @@ String.prototype.substringAfterNth = function (needle, n) {
     return this.substring(index);
 }
 
+function sleep(x) { // Wait for x ms
+    return new Promise(resolve => setTimeout(resolve, x));
+}
+
+async function waitFor(awaitable, interval = 50) {
+    let result = awaitable();
+
+    while (!result) {
+        await sleep(interval);
+        result = awaitable();
+    }
+
+    return result;
+}
+
 function replaceFunc(obj, funcName, addedFunc) {
 	obj[funcName] = function(...args) {
 		return addedFunc.apply(this, args);
@@ -88,23 +103,181 @@ function getLetterElem (index) {
         } else {
             index -= 1;
             res = matchText.children[2].children[index];
-            if (res == null) { // for the last character 
-                const letter = matchText.children[2].children[matchText.children[2].childElementCount - 1];
-                res = {
-                    offsetLeft: letter.offsetLeft + letter.getBoundingClientRect().width,
-                    offsetTop: letter.offsetTop
-                };
-            }
         }
+    }
+    if (!res) { // for the last character 
+        const letter = matchText.children[2].children[matchText.children[2].childElementCount - 1];
+        if (!letter) {
+            return {
+                offsetLeft: -100000,
+                offsetTop: -100000
+            };
+        }
+        res = {
+            offsetLeft: letter.offsetLeft + letter.getBoundingClientRect().width,
+            offsetTop: letter.offsetTop
+        };
     }
     return [res.offsetLeft - 2, res.offsetTop];
 }
 
-(function() {
+const showWPM = localStorage.getItem("show-wpm");
+const showCarets = localStorage.getItem("show-wpm");
+const hideOthersProgress = localStorage.getItem("hide-others-progress");
+let settings = {
+    "show-wpm": showWPM ? showWPM === "yes" : true,
+    "show-carets": showCarets ? showCarets === "yes" : true,
+    "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false
+}
+
+let alertTimeout;
+function createSettingsElem (settingTitle, settingName, left) { // very hacky. Do not call with user input. settingName is string, options is list of {text: , value: } objects
+    const div = document.createElement("div");
+    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2`;
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.innerText = settingTitle;
+    div.appendChild(titleDiv);
+    const selectElem = document.createElement("select");
+    selectElem.className = "form-settings";
+    selectElem.setAttribute("name", "userCardBorder");
+
+    const yesOptionElem = document.createElement("option");
+    yesOptionElem.setAttribute("value", "yes");
+    yesOptionElem.innerText = "Yes";
+    selectElem.appendChild(yesOptionElem);
+
+    const noOptionElem = document.createElement("option");
+    noOptionElem.setAttribute("value", "no");
+    noOptionElem.innerText = "No";
+    selectElem.appendChild(noOptionElem);
+
+    selectElem.addEventListener("change", function() {
+        localStorage.setItem(settingName, selectElem.value);
+        settings[settingName] = selectElem.value === "yes";
+        if (document.querySelector("form > div.fixed")) {
+            document.querySelector("form > div.fixed").style.display = "block";
+        } else {
+            document.querySelector("form").prepend(getSuccessAlert());
+        }
+        clearTimeout(alertTimeout);
+        alertTimeout = setTimeout(() => {
+            if (document.querySelector("form > div.fixed")) {
+                document.querySelector("form > div.fixed").style.display = "none";
+            }
+        }, 5000);
+    });
+
+    selectElem.value = settings[settingName] ? "yes" : "no";
+
+    div.appendChild(selectElem);
+    return div;
+}
+
+async function handleUrl(url) {
+    url = url.toString(); // window.location is a URI object or smth
+    if (url.startsWith("https://keyma.sh")) url = url.substring("https://keyma.sh".length)
+    if (url === "/settings") {
+        let personalizeH2 = await waitFor(() => document.querySelectorAll("form h2")[3]);
+        let settingsDiv = await waitFor(() => personalizeH2.nextSibling.querySelector("div > div.flex.flex-wrap.p-2"));
+        
+        function addSetting(elem) {
+            settingsDiv.lastChild.before(elem);
+        }
+
+        const left = settingsDiv.getElementsByClassName("lg:w-1/2").length % 2 == 0;
+
+        addSetting(createSettingsElem("Show WPM", "show-wpm", left, ["Yes", "No"]));
+        addSetting(createSettingsElem("Show carets", "show-carets", !left, ["Yes", "No"]));
+        addSetting(createSettingsElem("Hide others' progress", "hide-others-progress", left, ["Yes", "No"]));
+    }
+}
+
+function getSuccessAlert() {
+    let div = document.createElement("div");
+    div.setAttribute("class", "z-50 fixed top-0 right-0 left-0 lg:left-auto lg:ml-0 ml-6 mt-6 mr-6");
+    div.innerHTML = '<div class="rounded border-l-4 border-green-500 bg-green-900 px-6 py-4 uppercase text-white font-semibold text-sm"><div class="flex"><div class="hidden lg:block lg:w-8 my-auto pt-1"><svg aria-hidden="true" focusable="false" data-prefix="fad" data-icon="check-circle" class="svg-inline--fa fa-check-circle fa-w-16 text-xl" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><g class="fa-group"><path class="fa-secondary" fill="currentColor" d="M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm155.31 195.31l-184 184a16 16 0 0 1-22.62 0l-104-104a16 16 0 0 1 0-22.62l22.62-22.63a16 16 0 0 1 22.63 0L216 308.12l150.06-150.06a16 16 0 0 1 22.63 0l22.62 22.63a16 16 0 0 1 0 22.62z"></path><path class="fa-primary" fill="currentColor" d="M227.31 387.31a16 16 0 0 1-22.62 0l-104-104a16 16 0 0 1 0-22.62l22.62-22.63a16 16 0 0 1 22.63 0L216 308.12l150.06-150.06a16 16 0 0 1 22.63 0l22.62 22.63a16 16 0 0 1 0 22.62l-184 184z"></path></g></svg></div><div class="w-auto my-auto">Your changes have successfully been applied!</div></div></div>';
+    return div;
+}
+
+(async function() {
     'use strict';
 
     let users;
     let userID;
+    let userSlug;
+
+    function socketMessageHandler(data) {
+        const json = getJSONFromSocketData(data.data);
+        switch (json[0]) {
+            case "updatePlayers":
+                matchText = document.querySelector(".match--text");
+                matchTextBoundingRect = matchText.getBoundingClientRect();
+                for (const userID in users) {
+                    users[userID].caret?.parentNode?.removeChild(users[userID].caret);
+                }
+                users = {};
+                for (const user of json[1]) {
+                    const userElem = { // populate users object
+                        wpm: 0,
+                        index: 0,
+                        name: user.userName,
+                        caret: createCaret(user.userUniqueId)
+                    }
+                    let left, top;
+                    [left, top] = getLetterElem(0);
+
+                    userElem.caret.style.marginLeft = `${left}px`;
+                    userElem.caret.style.marginTop = `${top}px`;
+                    users[user.userUniqueId] = userElem;
+
+                    if (settings["show-carets"] && user.userUniqueId !== userID) { // only do this for other users
+                        document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
+                    }
+                }
+                if (settings["hide-others-progress"]) {
+                    for (const elem of document.querySelectorAll(".sidebar-user")) {
+                        if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                            elem.children[1].style.display = "none";
+                        }
+                    }
+                }
+                break;
+            case "updateWPM":
+                if (settings["show-wpm"] && json[1].WPM && json[1].userUniqueId === userID) { // we received our own wpm
+                    const infoBar = document.querySelector(".game--content--bar");
+                    if (infoBar) {
+                        let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
+                        if (!wpmWrapperElem) {
+                            wpmWrapperElem = getWPMElem();
+                            infoBar.appendChild(wpmWrapperElem);
+                        }
+                        const wpmElem = wpmWrapperElem.querySelector("#wpm-counter");
+                        wpmElem.innerText = json[1].WPM;
+                    }
+                } else if (settings["show-carets"] && json[1].correctKeystrokes && json[1].userUniqueId !== userID) { // we received another user's keystroke
+                    let left, top;
+                    [left, top] = getLetterElem(json[1].correctKeystrokes);
+
+                    users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
+                    users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
+                } else if (json[1].Placement) {
+                    if (settings["show-carets"] && json[1].Placement === 999) { // user left
+                        users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
+                        users[json[1].userUniqueId].caret.classList.add("bg-red-600");
+                    } else if (settings["hide-others-progress"] && json[1].userUniqueId == userID) { // we are done
+                        for (const elem of document.querySelectorAll(".sidebar-user")) { // make other users' progress reappear
+                            if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                                elem.children[1].style.display = "inline";
+                            }
+                        }
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
     
     const instanceHandler = {
         get(target, name) {
@@ -117,62 +290,9 @@ function getLetterElem (index) {
         set(target, name, value) {
             if (name == "onmessage") {
                 return Reflect.set(target, name, function(data) {
-                    const json = getJSONFromSocketData(data.data);
-                    switch (json[0]) {
-                        case "updatePlayers":
-                            matchText = document.querySelector(".match--text");
-                            matchTextBoundingRect = matchText.getBoundingClientRect();
-                            for (const userID in users) {
-                                users[userID].caret?.parentNode?.removeChild(users[userID].caret);
-                            }
-                            users = {};
-                            for (const user of json[1]) {
-                                const userElem = { // populate users object
-                                    wpm: 0,
-                                    index: 0,
-                                    name: user.userName,
-                                    caret: createCaret(user.userUniqueId)
-                                }
-                                let left, top;
-                                [left, top] = getLetterElem(0);
-                                // console.log(users[json[1].userUniqueId]);
-                                // console.log(`SETTING ${left}, ${top}`)
-                                userElem.caret.style.marginLeft = `${left}px`;
-                                userElem.caret.style.marginTop = `${top}px`;
-                                users[user.userUniqueId] = userElem;
-                                // console.log("ADDED " + users[user.userUniqueId].name);
-                                if (user.userUniqueId !== userID) { // only do this for other users
-                                    document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
-                                }
-                            }
-                            break;
-                        case "updateWPM":
-                            if (json[1].WPM && json[1].userUniqueId === userID) { // we received our own wpm
-                                const infoBar = document.querySelector(".game--content--bar");
-                                if (infoBar) {
-                                    let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
-                                    if (!wpmWrapperElem) {
-                                        wpmWrapperElem = getWPMElem();
-                                        infoBar.appendChild(wpmWrapperElem);
-                                    }
-                                    const wpmElem = wpmWrapperElem.querySelector("#wpm-counter");
-                                    wpmElem.innerText = json[1].WPM;
-                                }
-                            } else if (json[1].correctKeystrokes && json[1].userUniqueId !== userID) { // we received another user's keystroke
-                                let left, top;
-                                [left, top] = getLetterElem(json[1].correctKeystrokes);
-
-                                users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
-                                users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
-                            } else if (json[1].Placement && json[1].Placement === 999) { // user left
-                                users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
-                                users[json[1].userUniqueId].caret.classList.add("bg-red-600");
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                    return value(data);
+                    const res = value(data);
+                    socketMessageHandler(data);
+                    return res;
                 });
             }
             return Reflect.set(target, name, value);
@@ -195,8 +315,9 @@ function getLetterElem (index) {
             const jwt = json[1].userToken;
             const jwtPayload = parseJwt(jwt);
             userID = jwtPayload.userData.userUniqueId;
+            userSlug = jwtPayload.userData.userName + "-" + jwtPayload.userData.userEnum;
             const infoBar = document.querySelector(".game--content--bar");
-            if (infoBar) {
+            if (settings["show-wpm"] && infoBar) {
                 let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
                 if (!wpmWrapperElem) {
                     wpmWrapperElem = getWPMElem();
@@ -205,4 +326,14 @@ function getLetterElem (index) {
             }
         }
     });
+
+    prependToFunc(window.history, 'pushState', function(_1, _2, newurl) {
+        handleUrl(newurl);
+    });
+
+    prependToFunc(window.history, 'replaceState', function(_1, _2, newurl) {
+        handleUrl(newurl);
+    });
+
+    handleUrl(window.location);
 })();
