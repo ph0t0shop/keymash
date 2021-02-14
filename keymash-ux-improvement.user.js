@@ -84,8 +84,16 @@ function parseJwt(token) {
 function createCaret(userID) {
     let div = document.createElement("div");
     div.setAttribute("id", `caret${userID}`);
-    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s;`);
-    div.setAttribute("class", "absolute rounded bg-orange-400 other-players-caret");
+    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}`);
+    div.className = `absolute rounded other-players-caret`;
+    return div;
+}
+
+function createProgressBarContainer() {
+    const div = document.createElement("div");
+    div.id = "custom-progress-bar-container";
+    div.className = "custom-progress-bar-container rounded-t flex flex-wrap";
+    div.innerText = "heeeyyy";
     return div;
 }
 
@@ -122,26 +130,57 @@ const showWPM = localStorage.getItem("show-wpm");
 const showCarets = localStorage.getItem("show-wpm");
 const hideOthersProgress = localStorage.getItem("hide-others-progress");
 const smoothCaretsOthers = localStorage.getItem("smooth-carets-others");
+const bigProgressBar = localStorage.getItem("big-progress-bar");
+const caretColorOthers = localStorage.getItem("caret-color-others");
 let settings = {
     "show-wpm": showWPM ? showWPM === "yes" : true,
     "show-carets": showCarets ? showCarets === "yes" : true,
     "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false,
-    "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers
+    "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers,
+    "big-progress-bar": bigProgressBar === null ? 0 : parseInt(bigProgressBar),
+    "caret-color-others": caretColorOthers === null ? "#f6ad55" : caretColorOthers
 }
 
+function addStyle(css) {
+    const style = document.getElementById("GM_addStyleBy8626") || (function() {
+      const style = document.createElement('style');
+      style.type = 'text/css';
+      style.id = "GM_addStyleBy8626";
+      document.head.appendChild(style);
+      return style;
+    })();
+    const sheet = style.sheet;
+    sheet.insertRule(css, (sheet.rules || sheet.cssRules || []).length);
+  }
+
 let alertTimeout;
+function showSuccessAlert() {
+    if (document.querySelector("form > div.fixed")) {
+        document.querySelector("form > div.fixed").style.display = "block";
+    } else {
+        document.querySelector("form").prepend(getSuccessAlert());
+    }
+    clearTimeout(alertTimeout);
+    alertTimeout = setTimeout(() => {
+        if (document.querySelector("form > div.fixed")) {
+            document.querySelector("form > div.fixed").style.display = "none";
+        }
+    }, 5000);
+}
+
+
 function createSettingsElem (settingTitle, settingName, options, left, loadFunc, saveFunc) { // settingName is string, options is list of {text: , value: } objects. 
     if (!loadFunc) loadFunc = val => val.toString();
     if (!saveFunc) saveFunc = val => val.toString();
     const div = document.createElement("div");
-    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2`;
+    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2 custom-settings-elem`;
     const titleDiv = document.createElement("div");
     titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
     titleDiv.innerText = settingTitle;
     div.appendChild(titleDiv);
     const selectElem = document.createElement("select");
     selectElem.className = "form-settings";
-    selectElem.setAttribute("name", "userCardBorder");
+    selectElem.setAttribute("name", `usersetting-${settingName}`);
 
     for (const option of options) {
         const optionElem = document.createElement("option");
@@ -153,17 +192,7 @@ function createSettingsElem (settingTitle, settingName, options, left, loadFunc,
     selectElem.addEventListener("change", function() {
         localStorage.setItem(settingName, selectElem.value);
         settings[settingName] = loadFunc(selectElem.value);
-        if (document.querySelector("form > div.fixed")) {
-            document.querySelector("form > div.fixed").style.display = "block";
-        } else {
-            document.querySelector("form").prepend(getSuccessAlert());
-        }
-        clearTimeout(alertTimeout);
-        alertTimeout = setTimeout(() => {
-            if (document.querySelector("form > div.fixed")) {
-                document.querySelector("form > div.fixed").style.display = "none";
-            }
-        }, 5000);
+        showSuccessAlert();
     });
 
     selectElem.value = saveFunc(settings[settingName]);
@@ -184,6 +213,53 @@ function createBooleanSettingsElem(settingTitle, settingName, left) {
     )
 }
 
+function onColorClicked() {
+    localStorage.setItem("caret-color-others", this.value);
+    settings["caret-color-others"] = this.value;
+    showSuccessAlert();
+}
+
+function createColorPicker() {
+    const div = document.createElement("div");
+    div.className = "w-full";
+
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.innerText = "Caret color (others)";
+    div.appendChild(titleDiv);
+
+    const containerDiv = document.createElement("div");
+    containerDiv.className = "flex flex-wrap";
+    for (const colorCode of ["#cbd5e0","#a0aec0","#718096","#4a5568","#2d3748","#1a202c","#fc8181","#f56565","#e53e3e","#c53030","#9b2c2c","#742a2a","#f6ad55","#ed8936","#dd6b20","#c05621","#9c4221","#7b341e","#f6e05e","#ecc94b","#d69e2e","#b7791f","#975a16","#744210","#68d391","#48bb78","#38a169","#2f855a","#276749","#22543d","#4fd1c5","#38b2ac","#319795","#2c7a7b","#285e61","#234e52","#63b3ed","#4299e1","#3182ce","#2b6cb0","#2c5282","#2a4365","#7f9cf5","#667eea","#5a67d8","#4c51bf","#434190","#3c366b","#b794f4","#9f7aea","#805ad5","#6b46c1","#553c9a","#44337a","#f687b3","#ed64a6","#d53f8c","#b83280","#97266d","#702459","#000","#fff"]) {
+        const colorDiv = document.createElement("div");
+        colorDiv.style = "width:8%; height: 2rem;";
+        containerDiv.appendChild(colorDiv);
+
+        const colorLabel = document.createElement("label");
+        colorDiv.appendChild(colorLabel);
+
+        const inputElem = document.createElement("input");
+        inputElem.setAttribute("type", "radio");
+        inputElem.className = "form-control-radio-image caret-color-radio";
+        inputElem.setAttribute("name", "caretColor");
+        inputElem.setAttribute("value", colorCode);
+        inputElem.addEventListener("change", onColorClicked);
+        colorLabel.appendChild(inputElem);
+
+        if (colorCode === settings["caret-color-others"]) {
+            inputElem.checked = true;
+        }
+
+        const bgDiv = document.createElement("div");
+        bgDiv.style.cursor = "pointer";
+        bgDiv.classList.add("w-full", "h-full");
+        bgDiv.style.backgroundColor = colorCode;
+        colorLabel.appendChild(bgDiv);
+    }
+    div.appendChild(containerDiv);
+    return div;
+}
+
 async function handleUrl(url) {
     url = url.toString(); // window.location is a URI object or smth
     if (url.startsWith("https://keyma.sh")) url = url.substring("https://keyma.sh".length)
@@ -197,9 +273,17 @@ async function handleUrl(url) {
 
         const left = settingsDiv.getElementsByClassName("lg:w-1/2").length % 2 == 0;
 
+        if (document.querySelector(".custom-settings-elem")) return; // settings are already loaded here
         addSetting(createBooleanSettingsElem("Show large WPM", "show-wpm", left));
         addSetting(createBooleanSettingsElem("Show others' carets", "show-carets", !left));
         addSetting(createBooleanSettingsElem("Hide others' progress", "hide-others-progress", left));
+        addSetting(createSettingsElem("Big progress bar", "big-progress-bar", [
+            { value: "0", text: "Off" },
+            { value: "1", text: "Self" },
+            { value: "2", text: "Everyone" }
+        ],
+        !left,
+        parseInt));
         addSetting(createSettingsElem("Smooth carets (others)", "smooth-carets-others", [
             { value: "0", text: "Off" },
             { value: "50", text: "Faster" },
@@ -209,6 +293,7 @@ async function handleUrl(url) {
             { value: "150", text: "Slower" }
         ],
         !left))
+        addSetting(createColorPicker());
     }
 }
 
@@ -251,6 +336,7 @@ function getSuccessAlert() {
                     users[user.userUniqueId] = userElem;
 
                     if (settings["show-carets"] && user.userUniqueId !== userID) { // only do this for other users
+                        document.getElementById("caret").style.zIndex = "10";
                         document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
                     }
                 }
@@ -349,7 +435,7 @@ function getSuccessAlert() {
 
     WebSocket = new Proxy(WebSocket, handler);
 
-    prependToFunc(WebSocket.prototype, 'send', function(data, force) {
+    prependToFunc(WebSocket.prototype, 'send', function(data) {
         const json = getJSONFromSocketData(data);
 
         if (json[0] === "joinMatch") { // join match, also contains user token
@@ -367,6 +453,9 @@ function getSuccessAlert() {
                     infoBar.children[0].after(wpmWrapperElem);
                 }
             }
+            if (settings["big-progress-bar"] && infoBar) {
+                infoBar.before(createProgressBarContainer());
+            }
         }
     });
 
@@ -377,6 +466,9 @@ function getSuccessAlert() {
     prependToFunc(window.history, 'replaceState', function(_1, _2, newurl) {
         handleUrl(newurl);
     });
+
+    addStyle(".caret-color-radio:checked + div { border: 1px solid #f6ad55; }");
+    addStyle(".custom-progress-bar-container { --tw-bg-opacity: 1; background-color: rgba(30,30,33,var(--tw-bg-opacity)); padding: .75rem; --tw-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -1px rgba(0,0,0,0.06); }");
 
     handleUrl(window.location);
 })();
