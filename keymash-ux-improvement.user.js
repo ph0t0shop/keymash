@@ -311,7 +311,7 @@ async function handleUrl(url) {
             { value: "125", text: "Slow" },
             { value: "150", text: "Slower" }
         ],
-        !left))
+        left))
         addSetting(createColorPicker());
     }
 }
