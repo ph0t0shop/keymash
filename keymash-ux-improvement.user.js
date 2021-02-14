@@ -65,13 +65,13 @@ function getJSONFromSocketData(data) {
 function getWPMElem() {
     let div = document.createElement("div");
     div.setAttribute("class", "text-orange-400 uppercase font-semibold text-4xl");
-    div.setAttribute("style",  "margin-top: -10px; position:absolute; left: 50%; transform: translateX(-50%);")
+    div.style.position = "absolute";
     div.setAttribute("id", "wpm-counter-wrapper");
     div.innerHTML = '<span id="wpm-counter">0.00</span><span class="text-orange-400 text-opacity-50 text-lg uppercase">WPM</span>';
     return div;
 }
 
-function parseJwt (token) {
+function parseJwt(token) {
     var base64Url = token.split('.')[1];
     var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
@@ -81,10 +81,10 @@ function parseJwt (token) {
     return JSON.parse(jsonPayload);
 };
 
-function createCaret (userID) {
+function createCaret(userID) {
     let div = document.createElement("div");
     div.setAttribute("id", `caret${userID}`);
-    div.setAttribute("style", "width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1);");
+    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s;`);
     div.setAttribute("class", "absolute rounded bg-orange-400 other-players-caret");
     return div;
 }
@@ -121,14 +121,18 @@ function getLetterElem (index) {
 const showWPM = localStorage.getItem("show-wpm");
 const showCarets = localStorage.getItem("show-wpm");
 const hideOthersProgress = localStorage.getItem("hide-others-progress");
+const smoothCaretsOthers = localStorage.getItem("smooth-carets-others");
 let settings = {
     "show-wpm": showWPM ? showWPM === "yes" : true,
     "show-carets": showCarets ? showCarets === "yes" : true,
-    "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false
+    "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false,
+    "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers
 }
 
 let alertTimeout;
-function createSettingsElem (settingTitle, settingName, left) { // very hacky. Do not call with user input. settingName is string, options is list of {text: , value: } objects
+function createSettingsElem (settingTitle, settingName, options, left, loadFunc, saveFunc) { // settingName is string, options is list of {text: , value: } objects. 
+    if (!loadFunc) loadFunc = val => val.toString();
+    if (!saveFunc) saveFunc = val => val.toString();
     const div = document.createElement("div");
     div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2`;
     const titleDiv = document.createElement("div");
@@ -139,19 +143,16 @@ function createSettingsElem (settingTitle, settingName, left) { // very hacky. D
     selectElem.className = "form-settings";
     selectElem.setAttribute("name", "userCardBorder");
 
-    const yesOptionElem = document.createElement("option");
-    yesOptionElem.setAttribute("value", "yes");
-    yesOptionElem.innerText = "Yes";
-    selectElem.appendChild(yesOptionElem);
-
-    const noOptionElem = document.createElement("option");
-    noOptionElem.setAttribute("value", "no");
-    noOptionElem.innerText = "No";
-    selectElem.appendChild(noOptionElem);
+    for (const option of options) {
+        const optionElem = document.createElement("option");
+        optionElem.setAttribute("value", option.value);
+        optionElem.innerText = option.text;
+        selectElem.appendChild(optionElem);
+    }
 
     selectElem.addEventListener("change", function() {
         localStorage.setItem(settingName, selectElem.value);
-        settings[settingName] = selectElem.value === "yes";
+        settings[settingName] = loadFunc(selectElem.value);
         if (document.querySelector("form > div.fixed")) {
             document.querySelector("form > div.fixed").style.display = "block";
         } else {
@@ -165,10 +166,22 @@ function createSettingsElem (settingTitle, settingName, left) { // very hacky. D
         }, 5000);
     });
 
-    selectElem.value = settings[settingName] ? "yes" : "no";
+    selectElem.value = saveFunc(settings[settingName]);
 
     div.appendChild(selectElem);
     return div;
+}
+
+function createBooleanSettingsElem(settingTitle, settingName, left) {
+    return createSettingsElem(settingTitle, settingName,
+        [
+            { value: "yes", text: "Yes" },
+            { value: "no", text: "No" }
+        ],
+        left,
+        (val) => val === "yes",
+        (val) => val ? "yes" : "no",
+    )
 }
 
 async function handleUrl(url) {
@@ -184,9 +197,18 @@ async function handleUrl(url) {
 
         const left = settingsDiv.getElementsByClassName("lg:w-1/2").length % 2 == 0;
 
-        addSetting(createSettingsElem("Show large WPM", "show-wpm", left, ["Yes", "No"]));
-        addSetting(createSettingsElem("Show others' carets", "show-carets", !left, ["Yes", "No"]));
-        addSetting(createSettingsElem("Hide others' progress", "hide-others-progress", left, ["Yes", "No"]));
+        addSetting(createBooleanSettingsElem("Show large WPM", "show-wpm", left));
+        addSetting(createBooleanSettingsElem("Show others' carets", "show-carets", !left));
+        addSetting(createBooleanSettingsElem("Hide others' progress", "hide-others-progress", left));
+        addSetting(createSettingsElem("Smooth carets (others)", "smooth-carets-others", [
+            { value: "0", text: "Off" },
+            { value: "50", text: "Faster" },
+            { value: "75", text: "Fast" },
+            { value: "100", text: "Normal" },
+            { value: "125", text: "Slow" },
+            { value: "150", text: "Slower" }
+        ],
+        !left))
     }
 }
 
@@ -255,7 +277,8 @@ function getSuccessAlert() {
                 if (settings["show-wpm"] && json[1].WPM && json[1].userUniqueId === userID) { // we received our own wpm
                     const infoBar = document.querySelector(".game--content--bar");
                     if (infoBar) {
-                        let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
+                        infoBar.style = "display:flex;justify-content:center;align-items:center;";
+                        let wpmWrapperElem = infoBar.querySelector("#wpm-counter-wrapper");
                         if (!wpmWrapperElem) {
                             wpmWrapperElem = getWPMElem();
                             infoBar.appendChild(wpmWrapperElem);
@@ -337,7 +360,8 @@ function getSuccessAlert() {
             userSlug = jwtPayload.userData.userName + "-" + jwtPayload.userData.userEnum;
             const infoBar = document.querySelector(".game--content--bar");
             if (settings["show-wpm"] && infoBar) {
-                let wpmWrapperElem = document.querySelector("#wpm-counter-wrapper");
+                infoBar.style = "display:flex;justify-content:center;align-items:center;";
+                let wpmWrapperElem = infoBar.querySelector("#wpm-counter-wrapper");
                 if (!wpmWrapperElem) {
                     wpmWrapperElem = getWPMElem();
                     infoBar.children[0].after(wpmWrapperElem);
