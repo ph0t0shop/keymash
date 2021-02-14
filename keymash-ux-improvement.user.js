@@ -82,7 +82,7 @@ function parseJwt(token) {
 };
 
 function createCaret(userID) {
-    let div = document.createElement("div");
+    const div = document.createElement("div");
     div.setAttribute("id", `caret${userID}`);
     div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}`);
     div.className = `absolute rounded other-players-caret`;
@@ -93,7 +93,26 @@ function createProgressBarContainer() {
     const div = document.createElement("div");
     div.id = "custom-progress-bar-container";
     div.className = "custom-progress-bar-container rounded-t flex flex-wrap";
-    div.innerText = "heeeyyy";
+    return div;
+}
+
+function createProgressBar(userID, userName) {
+    const div = document.createElement("div");
+    div.className = "w-full bg-black bg-opacity-40 h-4 mb-1 rounded";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "pl-1 font-semibold text-gray-200";
+    nameSpan.textContent = userName;
+    nameSpan.style = "position: absolute; line-height: 1.3em; height: inherit; display: flex; align-items: end; overflow-y: hidden;"
+    div.appendChild(nameSpan);
+
+    const innerDiv = document.createElement("div");
+    innerDiv.id = `custom-progress-bar${userID}`;
+    innerDiv.className = "progress-smooth bg-blue-400 bg-opacity-50 h-4";
+    innerDiv.style = "border-top-left-radius: 0.25rem; border-bottom-left-radius: 0.25rem;";
+    innerDiv.style.width = "0%";
+    div.appendChild(innerDiv);
+
     return div;
 }
 
@@ -307,13 +326,17 @@ function getSuccessAlert() {
 (async function() {
     'use strict';
 
-    let users;
-    let userID;
-    let userSlug;
+    let users = {};
+    let userID = "";
+    let userSlug = "";
+    let matchWordsLength = 1;
 
     function socketMessageHandler(data) {
         const json = getJSONFromSocketData(data.data);
         switch (json[0]) {
+            case "getMatch":
+                matchWordsLength = json[1].matchText.split(" ").length;
+                break;
             case "updatePlayers":
                 matchText = document.querySelector(".match--text");
                 matchTextBoundingRect = matchText.getBoundingClientRect();
@@ -321,6 +344,17 @@ function getSuccessAlert() {
                     users[userID].caret?.parentNode?.removeChild(users[userID].caret);
                 }
                 users = {};
+                const infoBar = document.querySelector(".game--content--bar");
+                let progressBarContainer;
+                if (settings["big-progress-bar"] && infoBar) {
+                    progressBarContainer = infoBar.parentElement.querySelector("#custom-progress-bar-container");
+                    if (!progressBarContainer) {
+                        progressBarContainer = createProgressBarContainer();
+                        infoBar.before(progressBarContainer);
+                    } else {
+                        progressBarContainer.textContent = ""; // clear any previous bars
+                    }
+                }
                 for (const user of json[1]) {
                     const userElem = { // populate users object
                         wpm: 0,
@@ -338,6 +372,19 @@ function getSuccessAlert() {
                     if (settings["show-carets"] && user.userUniqueId !== userID) { // only do this for other users
                         document.getElementById("caret").style.zIndex = "10";
                         document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
+                    }
+
+                    if (progressBarContainer && (settings["big-progress-bar"] === 2 || (settings["big-progress-bar"] === 1 && user.userUniqueId === userID))) { // either show bars for everyone, or this is ours
+                        let progressBar = progressBarContainer.querySelector(`#custom-progress-bar${user.userUniqueId}`);
+                        if (!progressBar) {
+                            progressBar = createProgressBar(user.userUniqueId, user.userName);
+                            progressBar.children[1].style.width = "0%";
+                            if (user.userUniqueId === userID) { // this is us
+                                progressBarContainer.prepend(progressBar);
+                            } else {
+                                progressBarContainer.appendChild(progressBar);
+                            }
+                        }
                     }
                 }
                 if (settings["hide-others-progress"]) { // hide the others
@@ -378,9 +425,41 @@ function getSuccessAlert() {
 
                     users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
                     users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
-                } else if (settings["show-carets"] && json[1].Placement && json[1].Placement === 999) { // user left
-                    users[json[1].userUniqueId].caret.classList.remove("bg-orange-400");
-                    users[json[1].userUniqueId].caret.classList.add("bg-red-600");
+                } else if (json[1].Placement) { // user left
+                    if (settings["show-carets"] && json[1].Placement === 999) {
+                        users[json[1].userUniqueId].caret.style.backgroundColor = "#ef4444"; // red
+                    }
+
+                    if (settings["big-progress-bar"]) {
+                        const progressBar = document.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
+                        if (progressBar) {
+                            progressBar.classList.remove("bg-blue-400");
+                            progressBar.classList.remove("bg-green-400");
+                            progressBar.classList.remove("bg-red-600");
+                            progressBar.classList.add(json[1].Placement === 999 ? "bg-red-600" : "bg-green-400")
+                        }
+                    }
+                }
+                if (settings["show-carets"] && json[1].Words && settings["big-progress-bar"]) {
+                    const infoBar = document.querySelector(".game--content--bar");
+                    if (infoBar && (settings["big-progress-bar"] === 2 || json[1].userUniqueId === userID)) {
+                        let progressBarContainer = infoBar.parentElement.querySelector("#custom-progress-bar-container");
+                        if (!progressBarContainer) {
+                            progressBarContainer = createProgressBarContainer();
+                            infoBar.before(progressBarContainer);
+                        }
+                        let progressBar = progressBarContainer.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
+                        if (!progressBar) {
+                            progressBar = createProgressBar(json[1].userUniqueId, users[json[1].userUniqueId].name);
+                            if (json[1].userUniqueId === userID) { // this is us
+                                progressBarContainer.prepend(progressBar);
+                            } else {
+                                progressBarContainer.appendChild(progressBar);
+                            }
+                            progressBar = progressBar.children[1];
+                        }
+                        progressBar.style.width = `${(json[1].Words / matchWordsLength) * 100}%`;
+                    }
                 }
                 break;
             case "endMatch":
@@ -447,14 +526,14 @@ function getSuccessAlert() {
             const infoBar = document.querySelector(".game--content--bar");
             if (settings["show-wpm"] && infoBar) {
                 infoBar.style = "display:flex;justify-content:center;align-items:center;";
-                let wpmWrapperElem = infoBar.querySelector("#wpm-counter-wrapper");
-                if (!wpmWrapperElem) {
-                    wpmWrapperElem = getWPMElem();
-                    infoBar.children[0].after(wpmWrapperElem);
+                if (!infoBar.querySelector("#wpm-counter-wrapper")) {
+                    infoBar.children[0].after(getWPMElem());
                 }
             }
             if (settings["big-progress-bar"] && infoBar) {
-                infoBar.before(createProgressBarContainer());
+                if (!infoBar.parentElement.querySelector("#custom-progress-bar-container")) {
+                    infoBar.before(createProgressBarContainer());
+                }
             }
         }
     });
