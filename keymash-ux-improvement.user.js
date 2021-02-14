@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.1.2
+// @version      0.2.0
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -156,7 +156,7 @@ let settings = {
     "show-carets": showCarets ? showCarets === "yes" : true,
     "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false,
     "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers,
-    "big-progress-bar": bigProgressBar === null ? 0 : parseInt(bigProgressBar),
+    "big-progress-bar": bigProgressBar === null ? 2 : parseInt(bigProgressBar),
     "caret-color-others": caretColorOthers === null ? "#f6ad55" : caretColorOthers
 }
 
