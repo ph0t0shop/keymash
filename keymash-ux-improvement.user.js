@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.2.1
+// @version      0.2.2
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
