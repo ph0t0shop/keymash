@@ -98,7 +98,7 @@ function createProgressBarContainer() {
 
 function createProgressBar(userID, userName) {
     const div = document.createElement("div");
-    div.className = "w-full bg-black bg-opacity-40 h-4 mb-1 rounded";
+    div.className = "w-full bg-black bg-opacity-40 h-4 mb-1 rounded title-overflow";
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "pl-1 font-semibold text-gray-200";
@@ -109,7 +109,6 @@ function createProgressBar(userID, userName) {
     const innerDiv = document.createElement("div");
     innerDiv.id = `custom-progress-bar${userID}`;
     innerDiv.className = "progress-smooth bg-blue-400 bg-opacity-50 h-4";
-    innerDiv.style = "border-top-left-radius: 0.25rem; border-bottom-left-radius: 0.25rem;";
     innerDiv.style.width = "0%";
     div.appendChild(innerDiv);
 
@@ -117,8 +116,7 @@ function createProgressBar(userID, userName) {
 }
 
 let matchText;
-let matchTextBoundingRect;
-function getLetterElem (index) {
+function getLetterOffset (index) {
     const first = matchText.children[0];
     let res;
     if (index < first.childElementCount) {
@@ -133,7 +131,7 @@ function getLetterElem (index) {
         }
     }
     if (!res) { // for the last character 
-        const letter = matchText.children[2].children[matchText.children[2].childElementCount - 1];
+        const letter = matchText.children[2].lastChild;
         if (!letter) {
             return [-100000, -100000];
         }
@@ -162,15 +160,15 @@ let settings = {
 
 function addStyle(css) {
     const style = document.getElementById("GM_addStyleBy8626") || (function() {
-      const style = document.createElement('style');
-      style.type = 'text/css';
-      style.id = "GM_addStyleBy8626";
-      document.head.appendChild(style);
-      return style;
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.id = "GM_addStyleBy8626";
+        document.head.appendChild(style);
+        return style;
     })();
     const sheet = style.sheet;
     sheet.insertRule(css, (sheet.rules || sheet.cssRules || []).length);
-  }
+}
 
 let alertTimeout;
 function showSuccessAlert() {
@@ -336,7 +334,7 @@ function getSuccessAlert() {
         switch (json[0]) {
             case "updateRound": // TODO: set bar progress to 0 here
                 let left, top;
-                [left, top] = getLetterElem(0);
+                [left, top] = getLetterOffset(0);
 
                 for (const userID in users) {
                     const user = users[userID];
@@ -352,7 +350,6 @@ function getSuccessAlert() {
                 break;
             case "updatePlayers":
                 matchText = document.querySelector(".match--text");
-                matchTextBoundingRect = matchText.getBoundingClientRect();
                 for (const userID in users) {
                     users[userID].caret?.parentNode?.removeChild(users[userID].caret);
                 }
@@ -370,7 +367,7 @@ function getSuccessAlert() {
                         caret: createCaret(user.userUniqueId)
                     }
                     let left, top;
-                    [left, top] = getLetterElem(0);
+                    [left, top] = getLetterOffset(0);
 
                     userElem.caret.style.marginLeft = `${left}px`;
                     userElem.caret.style.marginTop = `${top}px`;
@@ -415,7 +412,7 @@ function getSuccessAlert() {
                     wpmElem.innerText = json[1].WPM;
                 } else if (settings["show-carets"] && json[1].correctKeystrokes && json[1].userUniqueId !== userID) { // we received another user's keystroke
                     let left, top;
-                    [left, top] = getLetterElem(json[1].correctKeystrokes);
+                    [left, top] = getLetterOffset(json[1].correctKeystrokes);
 
                     users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
                     users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
