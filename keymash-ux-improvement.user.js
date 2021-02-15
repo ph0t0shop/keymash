@@ -146,7 +146,7 @@ function getLetterElem (index) {
 }
 
 const showWPM = localStorage.getItem("show-wpm");
-const showCarets = localStorage.getItem("show-wpm");
+const showCarets = localStorage.getItem("show-carets");
 const hideOthersProgress = localStorage.getItem("hide-others-progress");
 const smoothCaretsOthers = localStorage.getItem("smooth-carets-others");
 const bigProgressBar = localStorage.getItem("big-progress-bar");
@@ -334,6 +334,19 @@ function getSuccessAlert() {
     function socketMessageHandler(data) {
         const json = getJSONFromSocketData(data.data);
         switch (json[0]) {
+            case "updateRound": // TODO: set bar progress to 0 here
+                let left, top;
+                [left, top] = getLetterElem(0);
+
+                for (const userID in users) {
+                    const user = users[userID];
+                    if (user.caret) {
+                        user.caret.style.marginLeft = `${left}px`;
+                        user.caret.style.marginTop = `${top}px`;
+                    }
+                }
+                matchWordsLength = json[1].matchText.split(" ").length;
+                break;
             case "getMatch":
                 matchWordsLength = json[1].matchText.split(" ").length;
                 break;
@@ -344,16 +357,10 @@ function getSuccessAlert() {
                     users[userID].caret?.parentNode?.removeChild(users[userID].caret);
                 }
                 users = {};
-                const infoBar = document.querySelector(".game--content--bar");
                 let progressBarContainer;
-                if (settings["big-progress-bar"] && infoBar) {
-                    progressBarContainer = infoBar.parentElement.querySelector("#custom-progress-bar-container");
-                    if (!progressBarContainer) {
-                        progressBarContainer = createProgressBarContainer();
-                        infoBar.before(progressBarContainer);
-                    } else {
-                        progressBarContainer.textContent = ""; // clear any previous bars
-                    }
+                if (settings["big-progress-bar"]) {
+                    progressBarContainer = document.querySelector("#custom-progress-bar-container");
+                    progressBarContainer.textContent = ""; // clear any previous bars
                 }
                 for (const user of json[1]) {
                     const userElem = { // populate users object
@@ -374,16 +381,12 @@ function getSuccessAlert() {
                         document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
                     }
 
-                    if (progressBarContainer && (settings["big-progress-bar"] === 2 || (settings["big-progress-bar"] === 1 && user.userUniqueId === userID))) { // either show bars for everyone, or this is ours
-                        let progressBar = progressBarContainer.querySelector(`#custom-progress-bar${user.userUniqueId}`);
-                        if (!progressBar) {
-                            progressBar = createProgressBar(user.userUniqueId, user.userName);
-                            progressBar.children[1].style.width = "0%";
-                            if (user.userUniqueId === userID) { // this is us
-                                progressBarContainer.prepend(progressBar);
-                            } else {
-                                progressBarContainer.appendChild(progressBar);
-                            }
+                    if (settings["big-progress-bar"] === 2 || (settings["big-progress-bar"] === 1 && user.userUniqueId === userID)) { // either show bars for everyone, or this is ours
+                        const progressBar = createProgressBar(user.userUniqueId, user.userName);
+                        if (user.userUniqueId === userID) { // this is us
+                            progressBarContainer.prepend(progressBar);
+                        } else {
+                            progressBarContainer.appendChild(progressBar);
                         }
                     }
                 }
@@ -408,56 +411,30 @@ function getSuccessAlert() {
                 break;
             case "updateWPM":
                 if (settings["show-wpm"] && json[1].WPM && json[1].userUniqueId === userID) { // we received our own wpm
-                    const infoBar = document.querySelector(".game--content--bar");
-                    if (infoBar) {
-                        infoBar.style = "display:flex;justify-content:center;align-items:center;";
-                        let wpmWrapperElem = infoBar.querySelector("#wpm-counter-wrapper");
-                        if (!wpmWrapperElem) {
-                            wpmWrapperElem = getWPMElem();
-                            infoBar.appendChild(wpmWrapperElem);
-                        }
-                        const wpmElem = wpmWrapperElem.querySelector("#wpm-counter");
-                        wpmElem.innerText = json[1].WPM;
-                    }
+                    const wpmElem = document.querySelector("#wpm-counter");
+                    wpmElem.innerText = json[1].WPM;
                 } else if (settings["show-carets"] && json[1].correctKeystrokes && json[1].userUniqueId !== userID) { // we received another user's keystroke
                     let left, top;
                     [left, top] = getLetterElem(json[1].correctKeystrokes);
 
                     users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
                     users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
-                } else if (json[1].Placement) { // user left
-                    if (settings["show-carets"] && json[1].Placement === 999) {
+                } else if (json[1].Placement) { // placement
+                    if (settings["show-carets"] && json[1].Placement === 999) { // user left
                         users[json[1].userUniqueId].caret.style.backgroundColor = "#ef4444"; // red
                     }
 
-                    if (settings["big-progress-bar"]) {
+                    if (settings["big-progress-bar"]) { // user is finished or left
                         const progressBar = document.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
-                        if (progressBar) {
-                            progressBar.classList.remove("bg-blue-400");
-                            progressBar.classList.remove("bg-green-400");
-                            progressBar.classList.remove("bg-red-600");
-                            progressBar.classList.add(json[1].Placement === 999 ? "bg-red-600" : "bg-green-400")
-                        }
+                        progressBar.classList.remove("bg-blue-400");
+                        progressBar.classList.remove("bg-green-400");
+                        progressBar.classList.remove("bg-red-600");
+                        progressBar.classList.add(json[1].Placement === 999 ? "bg-red-600" : "bg-green-400")
                     }
                 }
-                if (settings["show-carets"] && json[1].Words && settings["big-progress-bar"]) {
-                    const infoBar = document.querySelector(".game--content--bar");
-                    if (infoBar && (settings["big-progress-bar"] === 2 || json[1].userUniqueId === userID)) {
-                        let progressBarContainer = infoBar.parentElement.querySelector("#custom-progress-bar-container");
-                        if (!progressBarContainer) {
-                            progressBarContainer = createProgressBarContainer();
-                            infoBar.before(progressBarContainer);
-                        }
-                        let progressBar = progressBarContainer.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
-                        if (!progressBar) {
-                            progressBar = createProgressBar(json[1].userUniqueId, users[json[1].userUniqueId].name);
-                            if (json[1].userUniqueId === userID) { // this is us
-                                progressBarContainer.prepend(progressBar);
-                            } else {
-                                progressBarContainer.appendChild(progressBar);
-                            }
-                            progressBar = progressBar.children[1];
-                        }
+                if (json[1].Words && settings["big-progress-bar"]) { // user has typed a new word
+                    if (settings["big-progress-bar"] === 2 || json[1].userUniqueId === userID) {
+                        const progressBar = document.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
                         progressBar.style.width = `${(json[1].Words / matchWordsLength) * 100}%`;
                     }
                 }
@@ -524,16 +501,12 @@ function getSuccessAlert() {
             userID = jwtPayload.userData.userUniqueId;
             userSlug = jwtPayload.userData.userName + "-" + jwtPayload.userData.userEnum;
             const infoBar = document.querySelector(".game--content--bar");
-            if (settings["show-wpm"] && infoBar) {
+            if (settings["show-wpm"]) {
                 infoBar.style = "display:flex;justify-content:center;align-items:center;";
-                if (!infoBar.querySelector("#wpm-counter-wrapper")) {
-                    infoBar.children[0].after(getWPMElem());
-                }
+                infoBar.children[0].after(getWPMElem());
             }
-            if (settings["big-progress-bar"] && infoBar) {
-                if (!infoBar.parentElement.querySelector("#custom-progress-bar-container")) {
-                    infoBar.before(createProgressBarContainer());
-                }
+            if (settings["big-progress-bar"]) {
+                infoBar.before(createProgressBarContainer());
             }
         }
     });
