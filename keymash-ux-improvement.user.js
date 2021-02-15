@@ -332,21 +332,42 @@ function getSuccessAlert() {
     function socketMessageHandler(data) {
         const json = getJSONFromSocketData(data.data);
         switch (json[0]) {
-            case "updateRound": // TODO: set bar progress to 0 here
+            case "updateRound":
+                matchWordsLength = json[1].matchText.split(" ").length; // new match text length
+
                 let left, top;
                 [left, top] = getLetterOffset(0);
 
-                for (const userID in users) {
+                for (const userID in users) { // set carets to start again
                     const user = users[userID];
-                    if (user.caret) {
-                        user.caret.style.marginLeft = `${left}px`;
-                        user.caret.style.marginTop = `${top}px`;
+                    if (settings["show-carets"]) { // reset the carets
+                        if (user.caret) {
+                            user.caret.style.marginLeft = `${left}px`;
+                            user.caret.style.marginTop = `${top}px`;
+                        }
+                    }
+    
+                    if (settings["big-progress-bar"]) { // reset the progress bars
+                        if (user.progressBar) {
+                            user.progressBar.style.width = "0%";
+
+                            if (user.left) { // keep it red (although it won't be very visible anyway)
+                                user.progressBar.classList.remove("bg-blue-400");
+                                user.progressBar.classList.remove("bg-green-400");
+                                user.progressBar.classList.remove("bg-red-600");
+                                user.progressBar.classList.add("bg-red-600");
+                            } else { // reset to blue
+                                user.progressBar.classList.remove("bg-blue-400");
+                                user.progressBar.classList.remove("bg-green-400");
+                                user.progressBar.classList.remove("bg-red-600");
+                                user.progressBar.classList.add("bg-blue-400");
+                            }
+                        }
                     }
                 }
-                matchWordsLength = json[1].matchText.split(" ").length;
                 break;
             case "getMatch":
-                matchWordsLength = json[1].matchText.split(" ").length;
+                matchWordsLength = json[1].matchText.split(" ").length; // new match text
                 break;
             case "updatePlayers":
                 matchText = document.querySelector(".match--text");
@@ -364,7 +385,8 @@ function getSuccessAlert() {
                         wpm: 0,
                         index: 0,
                         name: user.userName,
-                        caret: createCaret(user.userUniqueId)
+                        caret: createCaret(user.userUniqueId),
+                        left: false
                     }
                     let left, top;
                     [left, top] = getLetterOffset(0);
@@ -377,13 +399,15 @@ function getSuccessAlert() {
                         document.getElementById("caret").style.zIndex = "10";
                         document.querySelector(".match--container > :nth-child(1) > :nth-child(1)").children[0].after(userElem.caret);
                     }
+                    
+                    const progressBarElem = createProgressBar(user.userUniqueId, user.userName);
+                    userElem.progressBar = progressBarElem.children[1];
 
                     if (settings["big-progress-bar"] === 2 || (settings["big-progress-bar"] === 1 && user.userUniqueId === userID)) { // either show bars for everyone, or this is ours
-                        const progressBar = createProgressBar(user.userUniqueId, user.userName);
                         if (user.userUniqueId === userID) { // this is us
-                            progressBarContainer.prepend(progressBar);
+                            progressBarContainer.prepend(progressBarElem);
                         } else {
-                            progressBarContainer.appendChild(progressBar);
+                            progressBarContainer.appendChild(progressBarElem);
                         }
                     }
                 }
@@ -417,21 +441,34 @@ function getSuccessAlert() {
                     users[json[1].userUniqueId].caret.style.marginLeft = `${left}px`;
                     users[json[1].userUniqueId].caret.style.marginTop = `${top}px`;
                 } else if (json[1].Placement) { // placement
-                    if (settings["show-carets"] && json[1].Placement === 999) { // user left
-                        users[json[1].userUniqueId].caret.style.backgroundColor = "#ef4444"; // red
+                    if (json[1].Placement === 999) { // user left
+                        users[json[1].userUniqueId].left = true;
+
+                        if (settings["show-carets"]) { // update their caret
+                            users[json[1].userUniqueId].caret.style.backgroundColor = "#ef4444"; // red
+                        }
                     }
 
-                    if (settings["big-progress-bar"]) { // user is finished or left
-                        const progressBar = document.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
+                    if (settings["big-progress-bar"]) { // user is finished or left, update their progress bar
+                        const progressBar = users[json[1].userUniqueId].progressBar;
                         progressBar.classList.remove("bg-blue-400");
                         progressBar.classList.remove("bg-green-400");
                         progressBar.classList.remove("bg-red-600");
-                        progressBar.classList.add(json[1].Placement === 999 ? "bg-red-600" : "bg-green-400")
+                        progressBar.classList.add(json[1].Placement === 999 ? "bg-red-600" : "bg-green-400");
+                    }
+                }
+                if (json[1].Progress && json[1].Progress === 100) { // user is finished
+                    if (settings["big-progress-bar"]) {
+                        const progressBar = users[json[1].userUniqueId].progressBar;
+                        progressBar.classList.remove("bg-blue-400");
+                        progressBar.classList.remove("bg-green-400");
+                        progressBar.classList.remove("bg-red-600");
+                        progressBar.classList.add("bg-green-400");
                     }
                 }
                 if (json[1].Words && settings["big-progress-bar"]) { // user has typed a new word
                     if (settings["big-progress-bar"] === 2 || json[1].userUniqueId === userID) {
-                        const progressBar = document.querySelector(`#custom-progress-bar${json[1].userUniqueId}`);
+                        const progressBar = users[json[1].userUniqueId].progressBar;
                         progressBar.style.width = `${(json[1].Words / matchWordsLength) * 100}%`;
                     }
                 }
@@ -455,6 +492,7 @@ function getSuccessAlert() {
                         }
                     }
                 }
+                break;
             default:
                 break;
         }
