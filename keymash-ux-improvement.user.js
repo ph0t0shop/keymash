@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.2.2
+// @version      0.2.3
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -84,7 +84,7 @@ function parseJwt(token) {
 function createCaret(userID) {
     const div = document.createElement("div");
     div.setAttribute("id", `caret${userID}`);
-    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}`);
+    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}; opacity: ${settings["caret-opacity-others"]}%`);
     div.className = `absolute rounded other-players-caret`;
     return div;
 }
@@ -149,13 +149,15 @@ const hideOthersProgress = localStorage.getItem("hide-others-progress");
 const smoothCaretsOthers = localStorage.getItem("smooth-carets-others");
 const bigProgressBar = localStorage.getItem("big-progress-bar");
 const caretColorOthers = localStorage.getItem("caret-color-others");
+const caretOpacityOthers = localStorage.getItem("caret-opacity-others");
 let settings = {
     "show-wpm": showWPM ? showWPM === "yes" : true,
     "show-carets": showCarets ? showCarets === "yes" : true,
     "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false,
     "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers,
     "big-progress-bar": bigProgressBar === null ? 2 : parseInt(bigProgressBar),
-    "caret-color-others": caretColorOthers === null ? "#f6ad55" : caretColorOthers
+    "caret-color-others": caretColorOthers === null ? "#f6ad55" : caretColorOthers,
+    "caret-opacity-others": caretOpacityOthers === null ? 100 : parseInt(caretOpacityOthers),
 }
 
 function addStyle(css) {
@@ -183,6 +185,50 @@ function showSuccessAlert() {
             document.querySelector("form > div.fixed").style.display = "none";
         }
     }, 5000);
+}
+
+function createSliderElem (settingTitle, settingName, left) {
+    const div = document.createElement("div");
+    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2 custom-settings-elem`;
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.innerText = settingTitle;
+    div.appendChild(titleDiv);
+
+    const formWrapper = document.createElement("div");
+    formWrapper.style = "display: flex; align-items: center;";
+
+    const label = document.createElement("label");
+    label.innerText = `${settings[settingName]}`;
+    label.className = "text-gray-100";
+    label.style = "width: 2.5em; text-align: center;";
+    label.setAttribute("for", `${settingName}-slider`);
+
+    formWrapper.appendChild(label);
+
+
+    const inputElem = document.createElement("input");
+    inputElem.setAttribute("type", "range");
+    inputElem.setAttribute("min", "0");
+    inputElem.setAttribute("max", "100");
+    inputElem.setAttribute("step", "1");
+    inputElem.id = `${settingName}-slider`;
+    inputElem.className = "form-settings";
+    inputElem.setAttribute("name", `usersetting-${settingName}`);
+    inputElem.addEventListener("input", function() {
+        label.innerText = inputElem.value;
+    });
+    inputElem.addEventListener("change", function() {
+        localStorage.setItem(settingName, inputElem.value);
+        settings[settingName] = parseInt(inputElem.value);
+        showSuccessAlert();
+    });
+    inputElem.value = `${settings[settingName]}`;
+
+    formWrapper.appendChild(inputElem);
+    div.appendChild(formWrapper);
+
+    return div;
 }
 
 
@@ -309,7 +355,8 @@ async function handleUrl(url) {
             { value: "125", text: "Slow" },
             { value: "150", text: "Slower" }
         ],
-        left))
+        left));
+        addSetting(createSliderElem("Caret opacity (others)", "caret-opacity-others"), !left)
         addSetting(createColorPicker());
     }
 }
