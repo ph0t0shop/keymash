@@ -199,9 +199,9 @@ function createSliderElem (settingTitle, settingName, left) {
     formWrapper.style = "display: flex; align-items: center;";
 
     const label = document.createElement("label");
-    label.innerText = `${settings[settingName]}`;
+    label.innerText = `${settings[settingName]}%`;
     label.className = "text-gray-100";
-    label.style = "width: 2.5em; text-align: center;";
+    label.style = "width: 3em; text-align: center;";
     label.setAttribute("for", `${settingName}-slider`);
 
     formWrapper.appendChild(label);
@@ -216,7 +216,7 @@ function createSliderElem (settingTitle, settingName, left) {
     inputElem.className = "form-settings";
     inputElem.setAttribute("name", `usersetting-${settingName}`);
     inputElem.addEventListener("input", function() {
-        label.innerText = inputElem.value;
+        label.innerText = `${inputElem.value}%`;
     });
     inputElem.addEventListener("change", function() {
         localStorage.setItem(settingName, inputElem.value);
