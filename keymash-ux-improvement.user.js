@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.2.3
+// @version      0.2.4
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -81,14 +81,6 @@ function parseJwt(token) {
     return JSON.parse(jsonPayload);
 };
 
-function createCaret(userID) {
-    const div = document.createElement("div");
-    div.setAttribute("id", `caret${userID}`);
-    div.setAttribute("style", `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}; opacity: ${settings["caret-opacity-others"]}%`);
-    div.className = `absolute rounded other-players-caret`;
-    return div;
-}
-
 function createProgressBarContainer() {
     const div = document.createElement("div");
     div.id = "custom-progress-bar-container";
@@ -143,6 +135,20 @@ function getLetterOffset (index) {
     return [res.offsetLeft - 2, res.offsetTop];
 }
 
+function createCaret(userID) {
+    console.log(matchText);
+    const div = document.createElement("div");
+    div.setAttribute("id", `caret${userID}`);
+    if (settings["show-carets"] === 2) { // underline
+        const boundingRect = matchText.children[1].children[0].getBoundingClientRect();
+        div.style = `left: 3px; top:23px; width: ${boundingRect.width - 2}px; height: 2px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}; opacity: ${settings["caret-opacity-others"]}%`;
+    } else { // default
+        div.style = `width: 2px; height: 23px; margin-left: -2px; margin-top: 4px; transform: scale(1.1); transition: margin ${settings["smooth-carets-others"]}ms ease 0s; background-color: ${settings["caret-color-others"]}; opacity: ${settings["caret-opacity-others"]}%`;
+    }
+    div.className = `absolute rounded other-players-caret`;
+    return div;
+}
+
 const showWPM = localStorage.getItem("show-wpm");
 const showCarets = localStorage.getItem("show-carets");
 const hideOthersProgress = localStorage.getItem("hide-others-progress");
@@ -152,7 +158,7 @@ const caretColorOthers = localStorage.getItem("caret-color-others");
 const caretOpacityOthers = localStorage.getItem("caret-opacity-others");
 let settings = {
     "show-wpm": showWPM ? showWPM === "yes" : true,
-    "show-carets": showCarets ? showCarets === "yes" : true,
+    "show-carets": showCarets === null || showCarets === "yes" ? 1 : parseInt(showCarets),
     "hide-others-progress": hideOthersProgress ? hideOthersProgress === "yes" : false,
     "smooth-carets-others": smoothCaretsOthers === null ? "0" : smoothCaretsOthers,
     "big-progress-bar": bigProgressBar === null ? 2 : parseInt(bigProgressBar),
@@ -338,7 +344,12 @@ async function handleUrl(url) {
 
         if (document.querySelector(".custom-settings-elem")) return; // settings are already loaded here
         addSetting(createBooleanSettingsElem("Show large WPM", "show-wpm", left));
-        addSetting(createBooleanSettingsElem("Show others' carets", "show-carets", !left));
+        addSetting(createSettingsElem("Show others' carets", "show-carets", [
+            { value: "0", text: "Off"},
+            { value: "1", text: "Default"},
+            { value: "2", text: "Underline"}
+        ], !left,
+        parseInt));
         addSetting(createBooleanSettingsElem("Hide others' progress", "hide-others-progress", left));
         addSetting(createSettingsElem("Big progress bar", "big-progress-bar", [
             { value: "0", text: "Off" },
