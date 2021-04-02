@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.2.4
+// @version      0.2.5
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -193,11 +193,10 @@ function showSuccessAlert() {
     }, 5000);
 }
 
-function createSliderElem (settingTitle, settingName, left) {
+function createSliderElem (settingTitle, settingName) {
     const div = document.createElement("div");
-    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2 custom-settings-elem`;
     const titleDiv = document.createElement("div");
-    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider custom-settings-elem";
     titleDiv.innerText = settingTitle;
     div.appendChild(titleDiv);
 
@@ -238,13 +237,12 @@ function createSliderElem (settingTitle, settingName, left) {
 }
 
 
-function createSettingsElem (settingTitle, settingName, options, left, loadFunc, saveFunc) { // settingName is string, options is list of {text: , value: } objects. 
+function createSettingsElem (settingTitle, settingName, options, loadFunc, saveFunc) { // settingName is string, options is list of {text: , value: } objects. 
     if (!loadFunc) loadFunc = val => val.toString();
     if (!saveFunc) saveFunc = val => val.toString();
     const div = document.createElement("div");
-    div.className = `w-full lg:w-1/2 lg:p${left ? "r" : "l"}-2 custom-settings-elem`;
     const titleDiv = document.createElement("div");
-    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
+    titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider custom-settings-elem";
     titleDiv.innerText = settingTitle;
     div.appendChild(titleDiv);
     const selectElem = document.createElement("select");
@@ -270,13 +268,12 @@ function createSettingsElem (settingTitle, settingName, options, left, loadFunc,
     return div;
 }
 
-function createBooleanSettingsElem(settingTitle, settingName, left) {
+function createBooleanSettingsElem(settingTitle, settingName) {
     return createSettingsElem(settingTitle, settingName,
         [
             { value: "yes", text: "Yes" },
             { value: "no", text: "No" }
         ],
-        left,
         (val) => val === "yes",
         (val) => val ? "yes" : "no",
     )
@@ -290,7 +287,7 @@ function onColorClicked() {
 
 function createColorPicker() {
     const div = document.createElement("div");
-    div.className = "w-full";
+    div.className = "col-span-full";
 
     const titleDiv = document.createElement("div");
     titleDiv.className = "pt-4 pb-1 text-blue-300 text-base uppercase font-semibold tracking-wider";
@@ -334,29 +331,26 @@ async function handleUrl(url) {
     if (url.startsWith("https://keyma.sh")) url = url.substring("https://keyma.sh".length)
     if (url === "/settings") {
         let personalizeH2 = await waitFor(() => document.querySelectorAll("form h2")[3]);
-        let settingsDiv = await waitFor(() => personalizeH2.nextSibling.querySelector("div > div.flex.flex-wrap.p-2"));
+        let settingsDiv = await waitFor(() => personalizeH2.nextSibling);
         
         function addSetting(elem) {
             settingsDiv.lastChild.before(elem);
         }
 
-        const left = settingsDiv.getElementsByClassName("lg:w-1/2").length % 2 == 0;
-
         if (document.querySelector(".custom-settings-elem")) return; // settings are already loaded here
-        addSetting(createBooleanSettingsElem("Show large WPM", "show-wpm", left));
+        addSetting(createBooleanSettingsElem("Show large WPM", "show-wpm"));
         addSetting(createSettingsElem("Show others' carets", "show-carets", [
             { value: "0", text: "Off"},
             { value: "1", text: "Default"},
             { value: "2", text: "Underline"}
-        ], !left,
+        ],
         parseInt));
-        addSetting(createBooleanSettingsElem("Hide others' progress", "hide-others-progress", left));
+        addSetting(createBooleanSettingsElem("Hide others' progress", "hide-others-progress"));
         addSetting(createSettingsElem("Big progress bar", "big-progress-bar", [
             { value: "0", text: "Off" },
             { value: "1", text: "Self" },
             { value: "2", text: "Everyone" }
         ],
-        !left,
         parseInt));
         addSetting(createSettingsElem("Smooth carets (others)", "smooth-carets-others", [
             { value: "0", text: "Off" },
@@ -365,9 +359,8 @@ async function handleUrl(url) {
             { value: "100", text: "Normal" },
             { value: "125", text: "Slow" },
             { value: "150", text: "Slower" }
-        ],
-        left));
-        addSetting(createSliderElem("Caret opacity (others)", "caret-opacity-others"), !left)
+        ]));
+        addSetting(createSliderElem("Caret opacity (others)", "caret-opacity-others"))
         addSetting(createColorPicker());
     }
 }
