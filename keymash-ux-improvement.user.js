@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keymash UX Improvement
 // @namespace    com.github.ph0t0shop
-// @version      0.2.5
+// @version      0.2.6
 // @description  clearer wpm counter for yourself, clearer way to see progress for others
 // @author       ph0t0shop
 // @match        https://keyma.sh/*
@@ -463,9 +463,19 @@ function getSuccessAlert() {
                     }
                 }
                 if (settings["hide-others-progress"]) { // hide the others
-                    for (const elem of document.querySelectorAll(".sidebar-user")) {
-                        if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
-                            elem.children[1].style.display = "none";
+                    if (document.querySelector(".container > * > * > .relative").nextSibling.classList.contains("flex")) {
+                        for (const elem of document.querySelectorAll(".sidebar-user")) {
+                            if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                                elem.children[1].style.display = "none";
+                            }
+                        }
+                    } else {
+                        for (const elem of document.querySelector(".progress-smooth").parentElement.parentElement.parentElement.children) {
+                            for (const index of [1, 3, 4, 5, 6]) {
+                                if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                                    elem.children[index].style.display = "none";
+                                }
+                            }
                         }
                     }
                     const otherRankedPlayer = document.querySelector("div.flex.flex-wrap.px-4.py-2.rounded-bl.flex-row-reverse");
@@ -526,9 +536,19 @@ function getSuccessAlert() {
                 break;
             case "endMatch":
                 if (settings["hide-others-progress"]) {
-                    for (const elem of document.querySelectorAll(".sidebar-user")) { // make other users' progress reappear
-                        if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
-                            elem.children[1].style.display = "inline";
+                    if (document.querySelector(".container > * > * > .relative").nextSibling.classList.contains("flex")) {
+                        for (const elem of document.querySelectorAll(".sidebar-user")) {
+                            if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                                elem.children[1].style.display = "inline";
+                            }
+                        }
+                    } else {
+                        for (const elem of document.querySelector(".progress-smooth").parentElement.parentElement.parentElement.children) {
+                            for (const index of [1, 3, 4, 5, 6]) {
+                                if (elem.querySelectorAll("a")[0].getAttribute("href") !== `/profile/${userSlug}`) {
+                                    elem.children[index].style.display = "block";
+                                }
+                            }
                         }
                     }
                     const otherRankedPlayer = document.querySelector("div.flex.flex-wrap.px-4.py-2.rounded-bl.flex-row-reverse");
